@@ -5,31 +5,39 @@ with open("phonebook_raw.csv", encoding="utf-8") as f:
     rows = csv.reader(f, delimiter=",")
     contacts_list = list(rows)
 
-def process_contacts(contacts):
-    new_contacts_list = []
-    header = contacts[0]
-    new_contacts_list.append(header)
+def format_phone(raw_phone):
+    if not raw_phone:
+        return ""
     
+    digits = re.sub(r"\D", "", raw_phone)
+    
+    if len(digits) >= 10:
+        main_part = digits[-10:]
+        formatted = f"+7({main_part[:3]}){main_part[3:6]}-{main_part[6:8]}-{main_part[8:10]}"
+        
+        ext_match = re.search(r"доб\.?\s*(\d+)", raw_phone)
+        if ext_match:
+            formatted += f" доб.{ext_match.group(1)}"
+        
+        return formatted
+    return raw_phone
+
+def process_contacts(contacts):
+    header = contacts[0]
     contacts_dict = {}
 
     for row in contacts[1:]:
-        full_name = " ".join(row[:3]).split()
-        lastname = full_name[0] if len(full_name) > 0 else ""
-        firstname = full_name[1] if len(full_name) > 1 else ""
-        surname = full_name[2] if len(full_name) > 2 else ""
+        full_name_raw = " ".join(row[:3]).split()
+        lastname = full_name_raw[0] if len(full_name_raw) > 0 else ""
+        firstname = full_name_raw[1] if len(full_name_raw) > 1 else ""
+        surname = full_name_raw[2] if len(full_name_raw) > 2 else ""
         
-        phone_pattern = re.compile(
-            r"(\+7|8)[\s-]*\(?(\d{3})\)?[\s-]*(\d{3})[\s-]*(\d{2})[\s-]*(\d{2})(\s*\(?(доб\.)?\s*(\d+)\)?)?"
-        )
-        
-        raw_phone = row[5]
-        phone = phone_pattern.sub(r"+7(\2)\3-\4-\5", raw_phone)
-        
-        match = phone_pattern.search(raw_phone)
-        if match and match.group(8):
-            phone += f" доб.{match.group(8)}"
+        organization = row[3]
+        position = row[4]
+        email = row[6]
+        phone = format_phone(row[5])
 
-        current_data = [lastname, firstname, surname, row[3], row[4], phone, row[6]]
+        current_data = [lastname, firstname, surname, organization, position, phone, email]
         
         person_key = (lastname, firstname)
         
@@ -40,10 +48,7 @@ def process_contacts(contacts):
                 if not contacts_dict[person_key][i]:
                     contacts_dict[person_key][i] = current_data[i]
 
-    for contact in contacts_dict.values():
-        new_contacts_list.append(contact)
-        
-    return new_contacts_list
+    return [header] + list(contacts_dict.values())
 
 cleaned_contacts = process_contacts(contacts_list)
 
